@@ -81,7 +81,3 @@ The following is the recommended stack for the project:
 - Simulates bus movement through a small background process or replayed GPS data.
 - Focuses on the core four modules: AVLS, Scheduling, IMS, and CMS, with authentication and role-based access as shared capabilities.
 - Is scoped for a student project, rather than a production-grade GPS ingestion platform.
-
-## Scope Note
-
-The project brief's user-role overview lists **Executive (read-only)** as the fifth role, while its authentication section lists **Conductor** instead. The final role set should be confirmed before role-specific functionality and permissions are finalized.
