@@ -1,0 +1,15 @@
+
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg[binary]
+alembic
+pydantic-settings
+python-dotenv
+geoalchemy2
+bcrypt
+bcrypt>=4.1,<6
+PyJWT>=2.8,<3
+python-multipart>=0.0.9,<1
+pytest
+httpx
