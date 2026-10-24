@@ -7,19 +7,44 @@ async function readError(response) {
   return `Request failed (${response.status}). Please try again.`
 }
 
+async function apiRequest(path, { token, signal, ...options } = {}) {
+  const headers = new Headers(options.headers || {})
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal })
+  if (!response.ok) throw new Error(await readError(response))
+  if (response.status === 204) return null
+  return response.json()
+}
+
 export async function signIn(username, password) {
   const body = new URLSearchParams({ username, password })
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  return apiRequest('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   })
-  if (!response.ok) throw new Error(await readError(response))
-  return response.json()
 }
 
 export async function getCurrentUser(accessToken) {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${accessToken}` } })
-  if (!response.ok) throw new Error(await readError(response))
-  return response.json()
+  return apiRequest('/auth/me', { token: accessToken })
+}
+
+function depotQuery(depotId) {
+  return depotId ? `?depot_id=${encodeURIComponent(depotId)}` : ''
+}
+
+export function getFleetVehicles(token, depotId) {
+  return apiRequest(`/fleet/vehicles${depotQuery(depotId)}`, { token })
+}
+
+export function getDepots(token) {
+  return apiRequest('/fleet/depots', { token })
+}
+
+export function getLiveLocations(token, depotId, signal) {
+  return apiRequest(`/vehicles/live-locations${depotQuery(depotId)}`, { token, signal })
+}
+
+export function getLiveDetails(token, vehicleId, signal) {
+  return apiRequest(`/vehicles/${encodeURIComponent(vehicleId)}/live-details`, { token, signal })
 }
