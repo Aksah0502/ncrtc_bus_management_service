@@ -57,6 +57,67 @@ function formatTime(value) {
   return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }).format(date)
 }
 
+function formatCoordinate(value) {
+  return Number.isFinite(value) ? value.toFixed(5) : '—'
+}
+
+function formatSpeed(value) {
+  return value == null ? '—' : `${Math.round(value)} km/h`
+}
+
+function routeName(details) {
+  return typeof details?.route_name === 'string' && details.route_name.trim() ? details.route_name.trim() : '—'
+}
+
+function VehicleDetailsView({ vehicle, depotName, liveLocation, details, loading, error, onBack }) {
+  const latest = details?.pings?.at(-1)
+  const currentPosition = liveLocation || latest
+  const history = [...(details?.pings || [])].reverse()
+  const status = vehicle?.status || 'unknown'
+  const driverPhone = details?.driver_phone?.trim() || ''
+  const driverLicense = details?.driver_driving_license_number?.trim() || ''
+  return (
+    <section className="vehicle-details-page" aria-label="Vehicle details">
+      <button className="detail-back" type="button" onClick={onBack}>‹ <span>Back to Dashboard</span></button>
+      <div className="vehicle-details-grid">
+        <div className="vehicle-details-main">
+          <section className="vehicle-summary-card">
+            <span className="vehicle-summary-icon"><BusGlyph /></span>
+            <div><small>Bus No</small><h1>{vehicle?.reg_no || details?.reg_no || 'Vehicle'}</h1><span>{routeName(details) === '—' ? 'Route assignment unavailable' : routeName(details)}</span></div>
+          </section>
+          <section className="vehicle-info-card vehicle-current-card">
+            <h2>Current Status (Bus)</h2>
+            <div className="current-status-row"><span className={`detail-status ${status.toLowerCase()}`}><i />{formatStatus(status)}</span><div><small>Current Route</small><strong>{routeName(details)}</strong></div><div><small>Current Position</small><strong>{currentPosition ? `${formatCoordinate(currentPosition.lat)}, ${formatCoordinate(currentPosition.lng)}` : 'No GPS position'}</strong></div></div>
+            {loading && <p className="detail-loading">Loading live vehicle and duty information…</p>}
+            {error && <p className="detail-error" role="alert">{error}</p>}
+          </section>
+          <section className="vehicle-info-card">
+            <h2><span className="details-section-icon">▤</span> Bus Info</h2>
+            <dl className="vehicle-facts">
+              <dt>Bus Number</dt><dd>{vehicle?.reg_no || details?.reg_no || '—'}</dd>
+              <dt>Route</dt><dd>{routeName(details) === '—' ? 'No published duty' : routeName(details)}</dd>
+              <dt>Current Location</dt><dd>{currentPosition ? `${formatCoordinate(currentPosition.lat)}, ${formatCoordinate(currentPosition.lng)}` : 'No GPS position'}</dd>
+              <dt>Depot</dt><dd>{depotName || '—'}</dd>
+              <dt>Speed</dt><dd>{formatSpeed(currentPosition?.speed_kmh)}</dd>
+              <dt>Ignition</dt><dd>{currentPosition?.ignition_on == null ? '—' : currentPosition.ignition_on ? 'On' : 'Off'}</dd>
+              <dt>Last Updated</dt><dd>{currentPosition?.ts ? `${new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }).format(new Date(currentPosition.ts))} IST` : '—'}</dd>
+            </dl>
+          </section>
+          <section className="vehicle-info-card vehicle-history-card">
+            <h2><span className="details-section-icon">◷</span> Recent GPS History <small>Last 30 minutes</small></h2>
+            {history.length ? <div className="vehicle-history-scroll"><table className="vehicle-history-table"><thead><tr><th>Time</th><th>Speed</th><th>Ignition</th><th>Coordinates</th></tr></thead><tbody>{history.map((ping, index) => <tr key={`${ping.ts}-${index}`}><td>{formatTime(ping.ts)}</td><td>{formatSpeed(ping.speed_kmh)}</td><td>{ping.ignition_on == null ? '—' : ping.ignition_on ? 'On' : 'Off'}</td><td>{formatCoordinate(ping.lat)}, {formatCoordinate(ping.lng)}</td></tr>)}</tbody></table></div> : <p className="history-empty">{loading ? 'Loading GPS history…' : 'No GPS history returned for the last 30 minutes.'}</p>}
+          </section>
+        </div>
+        <aside className="vehicle-info-card driver-info-card">
+          <h2><span className="details-section-icon">♙</span> Driver Info</h2>
+          <div className="driver-avatar" aria-hidden="true">♙</div>
+          <dl className="driver-facts"><dt>Name</dt><dd>{details?.driver_name || (loading ? 'Loading…' : 'No published duty')}</dd><dt>Phone</dt><dd>{driverPhone ? <a href={`tel:${driverPhone}`}>{driverPhone}</a> : 'Not supplied by API'}</dd><dt>Driving Licence</dt><dd>{driverLicense || 'Not supplied by API'}</dd><dt>Route</dt><dd>{routeName(details)}</dd></dl>
+        </aside>
+      </div>
+    </section>
+  )
+}
+
 function MapAutoCenter({ points }) {
   const map = useMap()
   const centered = useRef(false)
@@ -108,7 +169,7 @@ function MapView({ locations, depots, selectedDepot, selectedVehicleId, selected
               <strong>{location.reg_no}</strong>
               <span>{location.speed_kmh == null ? '—' : `${Math.round(location.speed_kmh)} km/h`}</span>
               {selectedDetails?.driver_name && <span>{selectedDetails.driver_name}</span>}
-              {selectedDetails?.route_code && <span>{selectedDetails.route_code}{selectedDetails.route_name ? ` · ${selectedDetails.route_name}` : ''}</span>}
+              {(selectedDetails?.route_name || selectedDetails?.route_code) && <span>{selectedDetails.route_name || selectedDetails.route_code}</span>}
             </div>
           </Popup>}
         </Marker>
@@ -158,13 +219,21 @@ export default function ControlRoomDashboard() {
   const [liveError, setLiveError] = useState('')
   const [liveUpdatedAt, setLiveUpdatedAt] = useState(null)
   const [fleetSearch, setFleetSearch] = useState('')
+  const [globalSearch, setGlobalSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [showAllSearchResults, setShowAllSearchResults] = useState(false)
+  const [searchDetails, setSearchDetails] = useState({})
+  const [searchDetailsLoading, setSearchDetailsLoading] = useState(false)
+  const [showVehicleDetails, setShowVehicleDetails] = useState(false)
   const [showAllVehicles, setShowAllVehicles] = useState(false)
   const [showActiveOnly, setShowActiveOnly] = useState(false)
   const [expandedMap, setExpandedMap] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
+  const [operatorMenuOpen, setOperatorMenuOpen] = useState(false)
   const unauthorized = useRef(false)
+  const searchLookupStarted = useRef(false)
 
   const activeCount = useMemo(() => vehicles.filter((vehicle) => vehicle.status?.toLowerCase() === 'active').length, [vehicles])
   const depotsById = useMemo(() => new Map(depots.map((depot) => [String(depot.id), depot])), [depots])
@@ -176,6 +245,17 @@ export default function ControlRoomDashboard() {
       const depotName = depotsById.get(String(vehicle.depot_id))?.name || ''
       return vehicle.reg_no.toLowerCase().includes(query) || depotName.toLowerCase().includes(query)
     }), [vehicles, showActiveOnly, fleetSearch, depotsById])
+  const globalSearchMatches = useMemo(() => {
+    const query = globalSearch.trim().toLowerCase()
+    if (!query) return []
+    return vehicles.filter((vehicle) => {
+      const depotName = depotsById.get(String(vehicle.depot_id))?.name || ''
+      const details = searchDetails[vehicle.id]
+      return `${vehicle.reg_no} ${depotName} ${vehicle.status} ${details?.driver_name || ''} ${details?.route_code || ''} ${details?.route_name || ''}`.toLowerCase().includes(query)
+    })
+  }, [vehicles, depotsById, globalSearch, searchDetails])
+  const selectedVehicle = vehicles.find((item) => String(item.id) === String(selectedVehicleId))
+  const selectedDepotName = selectedVehicle ? depotsById.get(String(selectedVehicle.depot_id))?.name : ''
   const mapPoints = useMemo(() => {
     const depotPoints = depots.filter((depot) => Number.isFinite(depot.location_lat) && Number.isFinite(depot.location_lng)).map((depot) => [depot.location_lat, depot.location_lng])
     if (depotPoints.length) return depotPoints
@@ -271,6 +351,34 @@ export default function ControlRoomDashboard() {
   }, [selectedVehicleId, token])
 
   useEffect(() => {
+    if (selectedDetails && selectedVehicleId) setSearchDetails((current) => ({ ...current, [selectedVehicleId]: selectedDetails }))
+  }, [selectedDetails, selectedVehicleId])
+
+  useEffect(() => {
+    const query = globalSearch.trim()
+    if (query.length < 2 || searchLookupStarted.current || !vehicles.length || !token) return
+    searchLookupStarted.current = true
+    setSearchDetailsLoading(true)
+    async function loadSearchDetails() {
+      const rows = vehicles
+      const found = {}
+      let next = 0
+      async function worker() {
+        while (next < rows.length) {
+          const vehicle = rows[next++]
+          try { found[vehicle.id] = await getLiveDetails(token, vehicle.id) } catch (error) {
+            if (isUnauthorized(error)) { unauthorized.current = true; return }
+          }
+          setSearchDetails((current) => ({ ...current, ...found }))
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(4, rows.length) }, worker))
+      setSearchDetailsLoading(false)
+    }
+    loadSearchDetails()
+  }, [globalSearch, vehicles, token])
+
+  useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000)
     return () => window.clearInterval(timer)
   }, [])
@@ -294,6 +402,7 @@ export default function ControlRoomDashboard() {
   function signOut() {
     window.sessionStorage.removeItem(TOKEN_KEY)
     window.localStorage.removeItem(TOKEN_KEY)
+    window.sessionStorage.removeItem('ncrtc_username')
     window.location.assign('/')
   }
 
@@ -308,16 +417,32 @@ export default function ControlRoomDashboard() {
     <main className="control-room-page">
       <header className="dashboard-topbar">
         <a className="dashboard-brand" href="/" aria-label="NCRTC overview"><NcrtcLogo className="dashboard-logo" /></a>
-        <label className="global-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input aria-label="Search bus number, driver, route, depot" placeholder="Search bus number, driver, route, depot…" /></label>
+        <div className="global-search-wrap">
+          <div className="global-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input value={globalSearch} onFocus={() => setSearchOpen(true)} onBlur={() => window.setTimeout(() => setSearchOpen(false), 150)} onChange={(event) => { setGlobalSearch(event.target.value); setShowAllSearchResults(false); setSearchOpen(true) }} onKeyDown={(event) => { if (event.key === 'Escape') setSearchOpen(false); if (event.key === 'Enter' && globalSearchMatches[0]) { setSelectedVehicleId(globalSearchMatches[0].id); setShowVehicleDetails(true); setSearchOpen(false) } }} aria-label="Search bus number, driver, route, depot" placeholder="Search bus number, driver, route, depot…" /><button type="button" className="global-search-clear" aria-label="Clear search" onClick={() => { setGlobalSearch(''); setSearchOpen(true) }}>×</button></div>
+          {searchOpen && globalSearch.trim() && <div className="global-search-results" role="listbox" aria-label="Search results">
+            {(showAllSearchResults ? globalSearchMatches : globalSearchMatches.slice(0, 7)).map((vehicle) => {
+              const matchDetails = searchDetails[vehicle.id]
+              const depotName = depotsById.get(String(vehicle.depot_id))?.name || `Depot ${vehicle.depot_id}`
+              return <button type="button" role="option" aria-selected="false" key={vehicle.id} className="global-search-result" onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelectedVehicleId(vehicle.id); setShowVehicleDetails(true); setSearchOpen(false) }}><span className="search-result-icon"><BusGlyph /></span><span className="search-result-vehicle"><strong>{vehicle.reg_no}</strong><small>{matchDetails?.route_name || depotName}</small></span><span className="search-result-driver">{matchDetails?.driver_name || (searchDetailsLoading ? 'Loading duty…' : 'Driver unavailable')}</span><span className={`search-result-status ${vehicle.status?.toLowerCase() || ''}`}><i />{formatStatus(vehicle.status)}</span></button>
+            })}
+            {globalSearchMatches.length === 0 && searchDetailsLoading && <p className="search-results-state">Searching drivers and routes…</p>}
+            {globalSearchMatches.length === 0 && !searchDetailsLoading && <p className="search-results-state">No matching buses, drivers, routes, or depots.</p>}
+            {globalSearchMatches.length > 7 && <button type="button" className="search-view-all" onClick={() => setShowAllSearchResults((value) => !value)}>⌕ <span>{showAllSearchResults ? 'Show fewer results' : 'View all results'}</span></button>}
+          </div>}
+        </div>
         <button className="notification-button" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span className="notification-dot"/></button>
-        <button className="operator-menu" onClick={signOut} title="Sign out">
-          <span className="operator-avatar">{initials(user.full_name)}</span>
-          <span className="operator-label"><strong>{user.full_name}</strong><small>{user.username}</small></span>
-          <span className="operator-caret">⌄</span>
-        </button>
+        <div className="operator-account" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOperatorMenuOpen(false) }}>
+          <button className="operator-menu" onClick={() => setOperatorMenuOpen((open) => !open)} title="Account menu" aria-haspopup="menu" aria-expanded={operatorMenuOpen}>
+            <span className="operator-avatar">{initials(user.full_name)}</span>
+            <span className="operator-label"><strong>{user.full_name}</strong><small>{user.username}</small></span>
+            <span className="operator-caret">⌄</span>
+          </button>
+          {operatorMenuOpen && <div className="operator-account-menu" role="menu"><button type="button" role="menuitem" onClick={signOut}>Sign out</button></div>}
+        </div>
       </header>
 
       <div className="dashboard-content">
+        {showVehicleDetails ? <VehicleDetailsView vehicle={selectedVehicle} depotName={selectedDepotName} liveLocation={locations.find((location) => String(location.vehicle_id) === String(selectedVehicleId))} details={selectedDetails} loading={detailsLoading} error={detailsError} onBack={() => setShowVehicleDetails(false)} /> : <>
         <div className="dashboard-title-row">
           <div><h1>Control Room Dashboard</h1><p>Live overview of bus operations across the Delhi-NCR region</p></div>
           <div className="dashboard-actions"><div className="dashboard-clock"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></svg><span>{formattedDate}</span><time>{formattedClock}</time></div><button className="refresh-button" onClick={refreshDashboard} disabled={refreshing}><svg className={refreshing ? 'spinning' : ''} viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 11.9-3"/></svg>{refreshing ? 'Refreshing' : 'Refresh'}</button></div>
@@ -354,7 +479,7 @@ export default function ControlRoomDashboard() {
                 <strong>{selectedDetails?.reg_no || vehicles.find((item) => item.id === selectedVehicleId)?.reg_no || 'Vehicle'}</strong>
                 {detailsLoading && <span>Loading vehicle details…</span>}
                 {detailsError && <span className="detail-error">{detailsError}</span>}
-                {selectedDetails && <><span>{selectedDetails.driver_name || '—'}</span><span>{selectedDetails.route_code ? `${selectedDetails.route_code}${selectedDetails.route_name ? ` · ${selectedDetails.route_name}` : ''}` : '—'}</span><small>{selectedDetails.pings.length} recent location points</small></>}
+                {selectedDetails && <><span>{selectedDetails.driver_name || '—'}</span><span>{selectedDetails.route_name || '—'}</span><small>{selectedDetails.pings.length} recent location points</small></>}
               </aside>}
             </div>
           </section>
@@ -370,7 +495,7 @@ export default function ControlRoomDashboard() {
                 {!fleetLoading && !fleetError && listRows.map((vehicle) => {
                   const status = vehicle.status?.toLowerCase() || 'unknown'
                   const depotName = depotsById.get(String(vehicle.depot_id))?.name || `Depot ${vehicle.depot_id}`
-                  return <button key={vehicle.id} className={`fleet-row${selectedVehicleId === vehicle.id ? ' selected' : ''}`} onClick={() => setSelectedVehicleId(vehicle.id)}>
+                  return <button key={vehicle.id} className={`fleet-row${selectedVehicleId === vehicle.id ? ' selected' : ''}`} onClick={() => { setSelectedVehicleId(vehicle.id); setShowVehicleDetails(true) }}>
                     <span className={`fleet-bus-icon ${status}`}><BusGlyph /></span>
                     <span className="fleet-vehicle-copy"><strong>{vehicle.reg_no}</strong><small>{depotName}</small></span>
                     <span className={`fleet-status ${status}`}><i/>{formatStatus(vehicle.status)}</span>
@@ -384,6 +509,7 @@ export default function ControlRoomDashboard() {
           </aside>
         </div>
         <footer className="dashboard-footer">Live fleet data from NCRTC APIs <span>•</span> Incident panel contains sample display data</footer>
+        </>}
       </div>
     </main>
   )

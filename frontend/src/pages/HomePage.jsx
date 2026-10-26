@@ -1,5 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import NcrtcLogo from '../components/NcrtcLogo.jsx'
+import { getCurrentUser } from '../services/api.js'
+
+function getToken() {
+  return window.sessionStorage.getItem('ncrtc_access_token') || window.localStorage.getItem('ncrtc_access_token')
+}
 
 const modules = [
   {
@@ -52,6 +57,24 @@ function SignInIcon() {
 
 export default function HomePage() {
   const [selectedModule, setSelectedModule] = useState(null)
+  const [user, setUser] = useState(null)
+  const [checkingAccount, setCheckingAccount] = useState(() => Boolean(getToken()))
+
+  useEffect(() => {
+    const token = getToken()
+    if (!token) return undefined
+    let active = true
+    getCurrentUser(token)
+      .then((account) => { if (active) setUser(account) })
+      .catch(() => {
+        window.sessionStorage.removeItem('ncrtc_access_token')
+        window.localStorage.removeItem('ncrtc_access_token')
+      })
+      .finally(() => { if (active) setCheckingAccount(false) })
+    return () => { active = false }
+  }, [])
+
+  const portalPath = user?.role === 'control_operator' ? '/control-room' : '/welcome'
 
   return (
     <div id="top" className="page-shell">
@@ -59,9 +82,9 @@ export default function HomePage() {
         <a className="home-brand" href="#top" aria-label="NCRTC Bus Management System home"><NcrtcLogo className="home-logo"/></a>
         <nav className="header-nav" aria-label="Main navigation">
           <a className="overview-link" href="#top">Overview</a>
-          <a className="button button-navy header-signin" href="/sign-in">
-            <SignInIcon /> <span>Sign In</span>
-          </a>
+          {user ? <a className="button button-navy header-signin" href={portalPath}>Open Dashboard</a> : <a className="button button-navy header-signin" href="/sign-in">
+            <SignInIcon /> <span>{checkingAccount ? 'Checking…' : 'Sign In'}</span>
+          </a>}
         </nav>
       </header>
 
@@ -73,8 +96,8 @@ export default function HomePage() {
             <h1 id="hero-heading">Smarter Bus Operations.<br /><span>Connected Mobility.</span></h1>
             <p className="hero-description">A unified platform to monitor buses, coordinate schedules,<br className="desktop-break" /> manage incidents, and share operational notices.</p>
             <div className="hero-actions">
-              <a className="button button-navy hero-signin" href="/sign-in">
-                <SignInIcon /> <span>Sign In to Portal</span><span className="arrow">→</span>
+              <a className="button button-navy hero-signin" href={user ? portalPath : '/sign-in'}>
+                {user ? <><span>Open Dashboard</span><span className="arrow">→</span></> : <><SignInIcon /> <span>{checkingAccount ? 'Checking account' : 'Sign In to Portal'}</span><span className="arrow">→</span></>}
               </a>
               <a className="explore-link" href="#modules">Explore the System <span>→</span></a>
             </div>
@@ -110,7 +133,7 @@ export default function HomePage() {
             <div className={`icon-disc ${selectedModule.color}`}><ModuleIcon name={selectedModule.icon} /></div>
             <h2 id="dialog-title">{selectedModule.title}</h2>
             <p>{selectedModule.detail}</p>
-            <a className="button button-navy" href="/sign-in">Sign In to Portal <span className="arrow">→</span></a>
+            <a className="button button-navy" href={user ? portalPath : '/sign-in'}>{user ? 'Open Dashboard' : 'Sign In to Portal'} <span className="arrow">→</span></a>
           </section>
         </div>
       )}

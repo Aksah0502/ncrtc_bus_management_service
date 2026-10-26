@@ -17,7 +17,7 @@ function EyeIcon({ hidden }) {
 export default function SignInPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(false)
+  const [remember, setRemember] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

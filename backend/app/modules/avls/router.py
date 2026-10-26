@@ -115,6 +115,10 @@ def live_details(
         "vehicle_id": vehicle.id,
         "reg_no": vehicle.reg_no,
         "driver_name": driver.full_name if driver else None,
+        "driver_phone": driver.phone if driver else None,
+        "driver_driving_license_number": (
+            driver.driving_license_number if driver else None
+        ),
         "route_code": route.code if route else None,
         "route_name": route.name if route else None,
         "pings": pings,

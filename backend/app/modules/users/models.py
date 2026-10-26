@@ -28,4 +28,10 @@ class User(Base):
 
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
+    driving_license_number: Mapped[str | None] = mapped_column(
+        String(30),
+        unique=True,
+        nullable=True,
+    )
+
     depot: Mapped[Depot | None] = relationship(back_populates="users")

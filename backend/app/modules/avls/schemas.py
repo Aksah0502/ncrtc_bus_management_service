@@ -27,6 +27,8 @@ class LiveDetailsResponse(BaseModel):
     vehicle_id: int
     reg_no: str
     driver_name: str | None
+    driver_phone: str | None
+    driver_driving_license_number: str | None
     route_code: str | None
     route_name: str | None
     pings: list[GPSPingResponse]

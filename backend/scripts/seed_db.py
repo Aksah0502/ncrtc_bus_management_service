@@ -21,6 +21,75 @@ from app.modules.cms.models import Notice, NoticeRead
 SEED_PASSWORD = "DevOnly@123"
 IST = timezone(timedelta(hours=5, minutes=30))
 
+# Fictional demo identities and contact details. Do not use for real operations.
+FIRST_NAMES = [
+    "Rahul", "Amit", "Vikas", "Priya", "Rohit", "Neha", "Sandeep", "Pooja",
+    "Arjun", "Anjali", "Deepak", "Kavita", "Manish", "Sneha", "Akash", "Ritu",
+    "Nitin", "Meena", "Sanjay", "Aarti", "Mohit", "Simran", "Varun", "Shweta",
+    "Karan", "Divya", "Gaurav", "Isha", "Ajay", "Nisha",
+]
+LAST_NAMES = [
+    "Sharma", "Verma", "Yadav", "Singh", "Kumar", "Gupta", "Chauhan", "Mishra",
+    "Mehta", "Kapoor", "Joshi", "Malhotra", "Arora", "Bansal", "Tyagi", "Rana",
+    "Saxena", "Saini", "Rawat", "Agarwal",
+]
+
+DEPOT_SPECS = [
+    ("SEED-D01", "Kashmere Gate", 28.6675, 77.2285),
+    ("SEED-D02", "Anand Vihar", 28.6469, 77.3160),
+    ("SEED-D03", "Ghaziabad", 28.6692, 77.4538),
+    ("SEED-D04", "Pari Chowk", 28.4650, 77.5080),
+    ("SEED-D05", "Noida Sector 52", 28.5850, 77.3680),
+]
+
+STOP_SPECS = [
+    ("Kashmere Gate", 28.6675, 77.2285),
+    ("ISBT Kashmere Gate", 28.6692, 77.2280),
+    ("Civil Lines", 28.6773, 77.2250),
+    ("Red Fort", 28.6562, 77.2410),
+    ("ITO", 28.6289, 77.2405),
+    ("Anand Vihar ISBT", 28.6469, 77.3160),
+    ("Kaushambi", 28.6450, 77.3240),
+    ("Vaishali", 28.6495, 77.3390),
+    ("Ghaziabad Railway Station", 28.6692, 77.4538),
+    ("Raj Nagar", 28.7010, 77.4350),
+    ("Noida Sector 15", 28.5850, 77.3110),
+    ("Noida Sector 18", 28.5708, 77.3260),
+    ("Noida Sector 52", 28.5850, 77.3680),
+    ("Noida City Centre", 28.5745, 77.3560),
+    ("Botanical Garden", 28.5640, 77.3340),
+    ("Pari Chowk", 28.4650, 77.5080),
+    ("Alpha 1", 28.4720, 77.5030),
+    ("Knowledge Park II", 28.4560, 77.5000),
+    ("Rajiv Chowk Gurugram", 28.4595, 77.0266),
+    ("IFFCO Chowk", 28.4722, 77.0720),
+]
+
+ROUTE_SPECS = [
+    ("Kashmere Gate – Noida Sector 52", 0, 12),
+    ("Anand Vihar – Ghaziabad", 5, 8),
+    ("Pari Chowk – Noida Sector 18", 15, 11),
+    ("Kashmere Gate – Anand Vihar", 0, 5),
+    ("Ghaziabad – Noida Sector 52", 8, 12),
+    ("Pari Chowk – Knowledge Park II", 15, 17),
+    ("Noida Sector 52 – Botanical Garden", 12, 14),
+    ("Anand Vihar – IFFCO Chowk", 5, 19),
+    ("Kashmere Gate – ITO", 0, 4),
+    ("Ghaziabad – Kaushambi", 8, 6),
+    ("Noida Sector 15 – Pari Chowk", 10, 15),
+    ("Raj Nagar – Anand Vihar", 9, 5),
+]
+
+# Plausible-format but fictional registration numbers; stable by vehicle index.
+def registration_for(index: int) -> str:
+    prefixes = ["DL01PC", "DL05AC", "DL10CG", "DL11CD", "UP14BT", "UP16CT"]
+    return f"{prefixes[index % len(prefixes)]}{(index + 1):04d}"
+
+
+def person_name(index: int) -> str:
+    # 30 x 20 combinations gives unique names for the seeded population.
+    return f"{FIRST_NAMES[index % len(FIRST_NAMES)]} {LAST_NAMES[(index // len(FIRST_NAMES) + index % 7) % len(LAST_NAMES)]}"
+
 created_counts = {
     "depots": 0,
     "users": 0,
@@ -43,6 +112,12 @@ def get_or_create(session, model, lookup: dict, values: dict, table: str):
         select(model).filter_by(**lookup).limit(1)
     )
     if obj is not None:
+        for field, value in values.items():
+            # Preserve existing login passwords when refreshing demo profile data.
+            if field == "password_hash":
+                continue
+            setattr(obj, field, value)
+        session.flush()
         return obj
 
     obj = model(**values)
@@ -60,6 +135,11 @@ def make_password_hash(password: str) -> str:
 
 
 def seed_database() -> None:
+    if not hasattr(User, "driving_license_number"):
+        raise RuntimeError(
+            "User.driving_license_number is missing. Add the model field and apply its Alembic migration before seeding."
+        )
+
     today = datetime.now(IST).date()
     historical_day = today - timedelta(days=1)
     week_start = today - timedelta(days=today.weekday())
@@ -72,13 +152,7 @@ def seed_database() -> None:
             # ---------------------------------------------------------
             # 1. Depots
             # ---------------------------------------------------------
-            depot_specs = [
-                ("SEED-D01", "Sample Depot 01", 28.6139, 77.2090),
-                ("SEED-D02", "Sample Depot 02", 28.5355, 77.3910),
-                ("SEED-D03", "Sample Depot 03", 28.4595, 77.0266),
-                ("SEED-D04", "Sample Depot 04", 28.4089, 77.3178),
-                ("SEED-D05", "Sample Depot 05", 28.7041, 77.1025),
-            ]
+            depot_specs = DEPOT_SPECS
 
             depots = []
             for code, name, lat, lng in depot_specs:
@@ -116,10 +190,11 @@ def seed_database() -> None:
                     {
                         "username": f"seed_driver_{i + 1:03d}",
                         "password_hash": password_hash,
-                        "full_name": f"Seed Driver {i + 1:03d}",
+                        "full_name": person_name(i),
                         "role": "driver",
                         "depot_id": depot.id,
                         "phone": str(phone_number),
+                        "driving_license_number": f"DL-DEL-DEMO-{i + 1:04d}",
                     },
                     "users",
                 )
@@ -135,7 +210,7 @@ def seed_database() -> None:
                     {
                         "username": f"seed_manager_{i + 1:03d}",
                         "password_hash": password_hash,
-                        "full_name": f"Seed Depot Manager {i + 1:03d}",
+                        "full_name": person_name(60 + i),
                         "role": "depot_manager",
                         "depot_id": depot.id,
                         "phone": str(phone_number),
@@ -153,7 +228,7 @@ def seed_database() -> None:
                     {
                         "username": f"seed_operator_{i + 1:03d}",
                         "password_hash": password_hash,
-                        "full_name": f"Seed Control Operator {i + 1:03d}",
+                        "full_name": person_name(70 + i),
                         "role": "control_operator",
                         "depot_id": None,
                         "phone": str(phone_number),
@@ -171,7 +246,7 @@ def seed_database() -> None:
                     {
                         "username": f"seed_admin_{i + 1:03d}",
                         "password_hash": password_hash,
-                        "full_name": f"Seed Admin {i + 1:03d}",
+                        "full_name": person_name(80 + i),
                         "role": "admin",
                         "depot_id": None,
                         "phone": str(phone_number),
@@ -198,20 +273,29 @@ def seed_database() -> None:
 
             for i in range(50):
                 depot = depots[i % len(depots)]
-                reg_no = f"SEED-BUS-{i + 1:03d}"
+                legacy_reg_no = f"SEED-BUS-{i + 1:03d}"
+                reg_no = registration_for(i)
                 status = "maintenance" if (i + 1) % 13 == 0 else "active"
 
-                vehicle = get_or_create(
-                    session,
-                    Vehicle,
-                    {"reg_no": reg_no},
-                    {
-                        "reg_no": reg_no,
-                        "depot_id": depot.id,
-                        "status": status,
-                    },
-                    "vehicles",
+                # Match either the legacy seed registration or the new stable one,
+                # so rerunning this script updates rather than duplicates vehicles.
+                vehicle = session.scalar(
+                    select(Vehicle).where(
+                        Vehicle.reg_no.in_([legacy_reg_no, reg_no])
+                    ).limit(1)
                 )
+                if vehicle is None:
+                    vehicle = Vehicle(
+                        reg_no=reg_no, depot_id=depot.id, status=status
+                    )
+                    session.add(vehicle)
+                    session.flush()
+                    created_counts["vehicles"] += 1
+                else:
+                    vehicle.reg_no = reg_no
+                    vehicle.depot_id = depot.id
+                    vehicle.status = status
+                    session.flush()
                 vehicles.append(vehicle)
                 vehicles_by_depot[vehicle.depot_id].append(vehicle)
 
@@ -221,18 +305,21 @@ def seed_database() -> None:
             # 4. Stops: 20 fictional points
             # ---------------------------------------------------------
             stops = []
-            for i in range(20):
-                name = f"Sample Stop {i + 1:02d}"
-                lat = 28.50 + (i // 5) * 0.015
-                lng = 77.20 + (i % 5) * 0.015
-
-                stop = get_or_create(
-                    session,
-                    Stop,
-                    {"name": name},
-                    {"name": name, "lat": lat, "lng": lng},
-                    "stops",
+            for i, (name, lat, lng) in enumerate(STOP_SPECS):
+                legacy_name = f"Sample Stop {i + 1:02d}"
+                stop = session.scalar(
+                    select(Stop).where(Stop.name.in_([legacy_name, name])).limit(1)
                 )
+                if stop is None:
+                    stop = Stop(name=name, lat=lat, lng=lng)
+                    session.add(stop)
+                    session.flush()
+                    created_counts["stops"] += 1
+                else:
+                    stop.name = name
+                    stop.lat = lat
+                    stop.lng = lng
+                    session.flush()
                 stops.append(stop)
 
             # ---------------------------------------------------------
@@ -241,7 +328,7 @@ def seed_database() -> None:
             routes = []
             routes_by_depot = defaultdict(list)
 
-            for i in range(12):
+            for i, (route_name, start_stop_index, end_stop_index) in enumerate(ROUTE_SPECS):
                 depot = depots[i % len(depots)]
                 code = f"SEED-R{i + 1:03d}"
 
@@ -251,7 +338,7 @@ def seed_database() -> None:
                     {"code": code},
                     {
                         "code": code,
-                        "name": f"Sample Route {i + 1:02d}",
+                        "name": route_name,
                         "depot_id": depot.id,
                     },
                     "routes",
@@ -259,9 +346,14 @@ def seed_database() -> None:
                 routes.append(route)
                 routes_by_depot[route.depot_id].append(route)
 
-                # Each route gets five ordered stops.
-                for sequence in range(1, 6):
-                    stop_index = (i * 2 + sequence - 1) % len(stops)
+                # Five ordered stops, with route-name endpoints matching actual stops.
+                intermediate = [
+                    (start_stop_index + 1) % len(stops),
+                    (start_stop_index + 2) % len(stops),
+                    (end_stop_index - 1) % len(stops),
+                ]
+                stop_indices = [start_stop_index, *intermediate, end_stop_index]
+                for sequence, stop_index in enumerate(stop_indices, start=1):
                     stop = stops[stop_index]
 
                     get_or_create(
@@ -475,7 +567,7 @@ def seed_database() -> None:
                 (
                     "SEED-NOTICE-003",
                     "Sample depot maintenance notice",
-                    "A fictional maintenance notice for Sample Depot 01.",
+                    "A maintenance notice for the Kashmere Gate operating area (demo data).",
                     {"depot_ids": [depots[0].id]},
                 ),
                 (
@@ -539,6 +631,7 @@ def seed_database() -> None:
     print("  Username: seed_admin_001")
     print(f"  Password: {SEED_PASSWORD}")
     print("  Development only; never use this password in production.")
+    print("  Existing usernames are preserved; existing password hashes are not overwritten.")
 
 
 if __name__ == "__main__":
