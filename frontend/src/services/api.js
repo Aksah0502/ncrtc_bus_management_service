@@ -48,3 +48,75 @@ export function getLiveLocations(token, depotId, signal) {
 export function getLiveDetails(token, vehicleId, signal) {
   return apiRequest(`/vehicles/${encodeURIComponent(vehicleId)}/live-details`, { token, signal })
 }
+
+function filteredQuery(filters = {}) {
+  const params = new URLSearchParams()
+  if (filters.role) params.set('role', filters.role)
+  if (filters.depotId) params.set('depot_id', filters.depotId)
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+export function getUsers(token, filters) {
+  return apiRequest(`/users${filteredQuery(filters)}`, { token })
+}
+
+export function createUser(token, payload) {
+  return apiRequest('/users', {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteUser(token, userId) {
+  return apiRequest(`/users/${encodeURIComponent(userId)}`, { method: 'DELETE', token })
+}
+
+export function createVehicle(token, payload) {
+  return apiRequest('/fleet/vehicles', {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteVehicle(token, vehicleId) {
+  return apiRequest(`/fleet/vehicles/${encodeURIComponent(vehicleId)}`, { method: 'DELETE', token })
+}
+
+export function createDepot(token, payload) {
+  return apiRequest('/fleet/depots', {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteDepot(token, depotId) {
+  return apiRequest(`/fleet/depots/${encodeURIComponent(depotId)}`, { method: 'DELETE', token })
+}
+
+export function getRoutes(token) {
+  return apiRequest('/routes', { token })
+}
+
+export function getRouteStops(token) {
+  return apiRequest('/routes/stops', { token })
+}
+
+export function createRoute(token, payload) {
+  return apiRequest('/routes', {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteRoute(token, routeId) {
+  return apiRequest(`/routes/${encodeURIComponent(routeId)}`, { method: 'DELETE', token })
+}

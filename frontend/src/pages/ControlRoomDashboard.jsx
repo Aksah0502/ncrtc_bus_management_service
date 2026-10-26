@@ -109,13 +109,17 @@ function VehicleDetailsView({ vehicle, depotName, liveLocation, details, loading
           </section>
         </div>
         <aside className="vehicle-info-card driver-info-card">
-          <h2><span className="details-section-icon">♙</span> Driver Info</h2>
-          <div className="driver-avatar" aria-hidden="true">♙</div>
+          <h2><span className="details-section-icon"><DriverPersonIcon /></span> Driver Info</h2>
+          <div className="driver-avatar" aria-hidden="true"><DriverPersonIcon /></div>
           <dl className="driver-facts"><dt>Name</dt><dd>{details?.driver_name || (loading ? 'Loading…' : 'No published duty')}</dd><dt>Phone</dt><dd>{driverPhone ? <a href={`tel:${driverPhone}`}>{driverPhone}</a> : 'Not supplied by API'}</dd><dt>Driving Licence</dt><dd>{driverLicense || 'Not supplied by API'}</dd><dt>Route</dt><dd>{routeName(details)}</dd></dl>
         </aside>
       </div>
     </section>
   )
+}
+
+function DriverPersonIcon() {
+  return <svg viewBox="0 0 64 64" focusable="false"><circle cx="32" cy="21" r="12" /><path d="M10 58c1-13 9-21 22-21s21 8 22 21" /></svg>
 }
 
 function MapAutoCenter({ points }) {

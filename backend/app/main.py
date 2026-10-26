@@ -5,6 +5,7 @@ from app.modules.fleet.router import router as fleet_router
 from app.modules.routes.router import router as routes_router
 from app.modules.scheduling.router import (router as scheduling_router, duties_router,)
 from app.modules.avls.router import router as avls_router
+from app.modules.users.router import router as users_router
 import os
 from contextlib import asynccontextmanager
 from threading import Event, Thread
@@ -49,6 +50,11 @@ app = FastAPI(
 # Register authentication endpoints under /api/v1
 app.include_router(
     auth_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    users_router,
     prefix="/api/v1",
 )
 

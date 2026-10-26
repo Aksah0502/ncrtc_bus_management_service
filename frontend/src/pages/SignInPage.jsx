@@ -37,7 +37,12 @@ export default function SignInPage() {
       otherStore.removeItem('ncrtc_access_token')
       store.setItem('ncrtc_access_token', tokenResponse.access_token)
       window.sessionStorage.setItem('ncrtc_username', user.username)
-      window.location.assign(user.role === 'control_operator' ? '/control-room' : '/welcome')
+      const destination = user.role === 'control_operator'
+        ? '/control-room'
+        : user.role === 'admin'
+          ? '/admin'
+          : '/welcome'
+      window.location.assign(destination)
     } catch (requestError) {
       setError(requestError.message || 'Unable to sign in. Please try again.')
     } finally {

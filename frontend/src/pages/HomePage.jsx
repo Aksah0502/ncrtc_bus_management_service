@@ -74,7 +74,7 @@ export default function HomePage() {
     return () => { active = false }
   }, [])
 
-  const portalPath = user?.role === 'control_operator' ? '/control-room' : '/welcome'
+  const portalPath = user?.role === 'control_operator' ? '/control-room' : user?.role === 'admin' ? '/admin' : '/welcome'
 
   return (
     <div id="top" className="page-shell">

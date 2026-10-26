@@ -296,6 +296,7 @@ button.stat-card:hover { border-color: #a8c8e5; box-shadow: 0 5px 14px #2b608e12
 .vehicle-facts dd, .driver-facts dd { overflow-wrap: anywhere; color: #1b304f; font-weight: 500; }
 .vehicle-facts > :nth-last-child(-n+2), .driver-facts > :nth-last-child(-n+2) { border-bottom: 0; }
 .details-section-icon { margin-right: 7px; color: #1681d4; font-size: 20px; }
+.details-section-icon svg { width: 18px; height: 18px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .vehicle-history-scroll { overflow: auto; }
 .vehicle-history-table { width: 100%; border-collapse: collapse; text-align: left; }
 .vehicle-history-table th { padding: 8px; color: #53647d; background: #eff5fb; font-size: 11px; font-weight: 600; }
@@ -304,6 +305,7 @@ button.stat-card:hover { border-color: #a8c8e5; box-shadow: 0 5px 14px #2b608e12
 .detail-error { margin: 8px 0 0; color: #a12a32; font-size: 12px; }
 .driver-info-card { min-height: 360px; margin: 14px 0; }
 .driver-avatar { width: 128px; height: 128px; display: grid; place-items: center; margin: 22px auto 24px; border-radius: 50%; color: #627ba6; background: #eaf0f8; font-size: 76px; }
+.driver-avatar svg { width: 76px; height: 76px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .driver-facts { grid-template-columns: minmax(110px, .8fr) minmax(100px, 1.2fr); }
 .driver-facts a { color: #0875ca; }
 .driver-facts a:hover { text-decoration: underline; }
